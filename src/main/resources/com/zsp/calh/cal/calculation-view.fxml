@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import java.lang.*?>
+<?import java.util.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox alignment="TOP_LEFT" spacing="15.0" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.zsp.calh.cal.controller.CalculationController">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+    </padding>
+
+    <Label text="数据计算" style="-fx-font-family: 'Arial'; -fx-font-size: 18; -fx-font-weight: bold;"/>
+    
+    <!-- 选择条件区域 -->
+    <GridPane hgap="10" vgap="10">
+        <Label text="选择项1:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="comboBox1" GridPane.rowIndex="0" GridPane.columnIndex="1" prefWidth="200"/>
+        
+        <Label text="选择项2:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="comboBox2" GridPane.rowIndex="1" GridPane.columnIndex="1" prefWidth="200"/>
+        
+        <Label text="选择项3:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="comboBox3" GridPane.rowIndex="2" GridPane.columnIndex="1" prefWidth="200"/>
+        
+        <Label text="选择项4:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="comboBox4" GridPane.rowIndex="3" GridPane.columnIndex="1" prefWidth="200"/>
+        
+        <Label text="选择项5:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="comboBox5" GridPane.rowIndex="4" GridPane.columnIndex="1" prefWidth="200"/>
+        
+        <Label text="选择项6:" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="comboBox6" GridPane.rowIndex="5" GridPane.columnIndex="1" prefWidth="200"/>
+        
+        <Label text="选择项7:" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="comboBox7" GridPane.rowIndex="6" GridPane.columnIndex="1" prefWidth="200"/>
+    </GridPane>
+    
+    <!-- 按钮区域 -->
+    <HBox alignment="CENTER" spacing="10">
+        <Button text="计算" onAction="#performCalculation" prefWidth="100"/>
+        <Button text="返回查询页" onAction="#returnToQueryView" prefWidth="120"/>
+    </HBox>
+    
+    <!-- 计算结果区域 -->
+    <VBox spacing="5">
+        <Label text="计算结果:"/>
+        <TextArea fx:id="resultTextArea" editable="false" prefHeight="100" wrapText="true"/>
+    </VBox>
+</VBox>

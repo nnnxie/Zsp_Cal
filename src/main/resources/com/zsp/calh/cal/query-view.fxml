@@ -40,5 +40,6 @@
             <Insets top="10" right="10" bottom="10" left="10"/>
         </VBox.margin>
         <Button text="返回主界面" onAction="#returnToMainView"/>
+        <Button text="计算页面" onAction="#goToCalculationView"/>
     </HBox>
 </VBox>

@@ -8,7 +8,6 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 
 import java.io.IOException;
@@ -135,6 +134,26 @@ public class QueryController {
         } catch (IOException e) {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "错误", "返回主界面失败: " + e.getMessage());
+        }
+    }
+    
+    // 跳转到计算页面
+    @FXML
+    public void goToCalculationView() {
+        try {
+            // 加载计算页面FXML
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/com/zsp/calh/cal/calculation-view.fxml"));
+            Parent root = fxmlLoader.load();
+            
+            // 获取当前舞台并设置新场景
+            Stage stage = (Stage) dataTableView.getScene().getWindow();
+            stage.setScene(new Scene(root, 800, 600));
+            stage.setTitle("Excel数据计算");
+            stage.show();
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "错误", "跳转到计算页面失败: " + e.getMessage());
         }
     }
     
