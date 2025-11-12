@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+
+<VBox alignment="CENTER" spacing="20.0" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.zsp.calh.cal.controller.HelloController">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+    </padding>
+
+    <Label fx:id="welcomeText"/>
+    
+    <!-- 文件选择区域 -->
+    <HBox spacing="10.0" prefWidth="400.0">
+        <TextField fx:id="filePathField" promptText="文件路径" HBox.hgrow="ALWAYS" editable="false"/>
+        <Button text="浏览..." onAction="#browseFile"/>
+    </HBox>
+    
+    <!-- 添加一个读取Excel文件的按钮 -->
+    <Button text="读取Excel文件" onAction="#readExcelFile"/>
+</VBox>

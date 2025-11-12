@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.collections.*?>
+
+<VBox alignment="TOP_LEFT" spacing="15.0" xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.zsp.calh.cal.controller.QueryController">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
+    </padding>
+
+    <Label text="Excel数据查询" />
+    
+    <!-- 查询条件区域 -->
+    <GridPane hgap="10" vgap="10">
+        <Label text="查询列:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="columnComboBox" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+        
+        <Label text="关键词:" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+        <TextField fx:id="keywordTextField" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+        
+        <Button text="查询" onAction="#performQuery" GridPane.rowIndex="0" GridPane.columnIndex="4"/>
+        <Button text="显示全部" onAction="#showAllData" GridPane.rowIndex="0" GridPane.columnIndex="5"/>
+    </GridPane>
+    
+    <!-- 数据显示区域 -->
+    <ScrollPane fitToWidth="true" fitToHeight="true" VBox.vgrow="ALWAYS">
+        <TableView fx:id="dataTableView">
+            <columns>
+                <!-- 列会在控制器中动态添加 -->
+            </columns>
+        </TableView>
+    </ScrollPane>
+    
+    <!-- 返回按钮 -->
+    <HBox alignment="CENTER" spacing="10">
+        <VBox.margin>
+            <Insets top="10" right="10" bottom="10" left="10"/>
+        </VBox.margin>
+        <Button text="返回主界面" onAction="#returnToMainView"/>
+    </HBox>
+</VBox>
