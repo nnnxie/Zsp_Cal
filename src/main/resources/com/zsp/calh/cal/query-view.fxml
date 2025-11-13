@@ -11,15 +11,15 @@
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
     </padding>
 
-    <Label text="Excel数据查询" />
+    <Label text="温度数据查询" />
     
     <!-- 查询条件区域 -->
     <GridPane hgap="10" vgap="10">
-        <Label text="查询列:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-        <ComboBox fx:id="columnComboBox" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+        <Label text="线别:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <ComboBox fx:id="lineComboBox" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
         
-        <Label text="关键词:" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
-        <TextField fx:id="keywordTextField" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+        <Label text="设备名称:" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+        <ComboBox fx:id="deviceComboBox" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
         
         <Button text="查询" onAction="#performQuery" GridPane.rowIndex="0" GridPane.columnIndex="4"/>
         <Button text="显示全部" onAction="#showAllData" GridPane.rowIndex="0" GridPane.columnIndex="5"/>
@@ -29,13 +29,23 @@
     <ScrollPane fitToWidth="true" fitToHeight="true" VBox.vgrow="ALWAYS">
         <TableView fx:id="dataTableView">
             <columns>
-                <!-- 列会在控制器中动态添加 -->
+                <TableColumn fx:id="lineNumberColumn" text="线别" prefWidth="80"/>
+                <TableColumn fx:id="deviceNameColumn" text="设备名称" prefWidth="120"/>
+                <TableColumn fx:id="dateColumn" text="日期" prefWidth="80"/>
+                <TableColumn fx:id="carTempLeft3Column" text="车上左3" prefWidth="80"/>
+                <TableColumn fx:id="carTempLeft4Column" text="车上左4" prefWidth="80"/>
+                <TableColumn fx:id="carTempLeft5Column" text="车上左5" prefWidth="80"/>
+                <TableColumn fx:id="carTempLeft6Column" text="车上左6" prefWidth="80"/>
+                <TableColumn fx:id="carTempRight3Column" text="车上右3" prefWidth="80"/>
+                <TableColumn fx:id="carTempRight4Column" text="车上右4" prefWidth="80"/>
+                <TableColumn fx:id="carTempRight5Column" text="车上右5" prefWidth="80"/>
+                <TableColumn fx:id="carTempRight6Column" text="车上右6" prefWidth="80"/>
             </columns>
         </TableView>
     </ScrollPane>
     
-    <!-- 返回按钮 -->
-    <HBox alignment="CENTER" spacing="10">
+    <!-- 按钮区域 -->
+    <HBox spacing="10">
         <VBox.margin>
             <Insets top="10" right="10" bottom="10" left="10"/>
         </VBox.margin>

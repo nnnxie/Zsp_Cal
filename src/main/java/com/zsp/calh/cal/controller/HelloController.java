@@ -1,5 +1,7 @@
 package com.zsp.calh.cal.controller;
 
+import com.zsp.calh.cal.model.TemperatureData;
+import com.zsp.calh.cal.model.TemperatureDataModel;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -67,16 +69,16 @@ public class HelloController {
             return;
         }
         
-        // 创建LoadController实例并读取Excel文件
+        // 创建LoadController实例并读取Excel文件映射到TemperatureData
         LoadController loadController = new LoadController();
-        List<List<String>> data = loadController.readExcelFile(filePath);
+        List<TemperatureData> data = loadController.readExcelToTemperatureData(filePath);
         
         if (!data.isEmpty()) {
-            // 存储数据到数据模型
-            ExcelDataModel dataModel = ExcelDataModel.getInstance();
-            dataModel.setExcelData(data);
+            // 存储数据到新的数据模型
+            TemperatureDataModel dataModel = TemperatureDataModel.getInstance();
+            dataModel.setTemperatureDataList(data);
             
-            welcomeText.setText("成功读取Excel文件，共 " + data.size() + " 行数据");
+            welcomeText.setText("成功读取Excel文件，共 " + data.size() + " 条数据记录");
             
             try {
                 // 跳转到查询界面
@@ -86,7 +88,7 @@ public class HelloController {
                 // 获取当前舞台并设置新场景
                 Stage stage = getStage();
                 stage.setScene(new Scene(root, 800, 600));
-                stage.setTitle("Excel数据查询");
+                stage.setTitle("温度数据查询");
                 stage.show();
                 
             } catch (IOException e) {

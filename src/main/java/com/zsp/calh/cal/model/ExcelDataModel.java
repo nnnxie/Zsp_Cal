@@ -3,6 +3,9 @@ package com.zsp.calh.cal.model;
 import java.util.ArrayList;
 import java.util.List;
 
+// 导入TemperatureData类
+import com.zsp.calh.cal.model.TemperatureData;
+
 public class ExcelDataModel {
     // 单例模式，用于在不同Controller之间共享数据
     private static ExcelDataModel instance;
@@ -13,9 +16,13 @@ public class ExcelDataModel {
     // 存储Excel表头信息
     private List<String> headers;
     
+    // 存储映射后的TemperatureData对象列表
+    private List<TemperatureData> temperatureDataList;
+    
     private ExcelDataModel() {
         this.excelData = new ArrayList<>();
         this.headers = new ArrayList<>();
+        this.temperatureDataList = new ArrayList<>();
     }
     
     // 获取单例实例
@@ -50,6 +57,19 @@ public class ExcelDataModel {
     // 获取表头
     public List<String> getHeaders() {
         return new ArrayList<>(headers);
+    }
+    
+    // 设置TemperatureData对象列表
+    public void setTemperatureDataList(List<TemperatureData> dataList) {
+        this.temperatureDataList.clear();
+        if (dataList != null) {
+            this.temperatureDataList.addAll(dataList);
+        }
+    }
+    
+    // 获取TemperatureData对象列表
+    public List<TemperatureData> getTemperatureDataList() {
+        return new ArrayList<>(temperatureDataList);
     }
     
     // 根据查询条件过滤数据

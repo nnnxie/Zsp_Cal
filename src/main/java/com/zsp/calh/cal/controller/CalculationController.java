@@ -1,173 +1,94 @@
 package com.zsp.calh.cal.controller;
 
-import com.zsp.calh.cal.model.ExcelDataModel;
+import com.zsp.calh.cal.model.TemperatureData;
+import com.zsp.calh.cal.model.TemperatureDataModel;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class CalculationController {
     @FXML
-    private ComboBox<String> comboBox1;
+    private ComboBox<String> lineComboBox;
     
     @FXML
-    private ComboBox<String> comboBox2;
-    
-    @FXML
-    private ComboBox<String> comboBox3;
-    
-    @FXML
-    private ComboBox<String> comboBox4;
-    
-    @FXML
-    private ComboBox<String> comboBox5;
-    
-    @FXML
-    private ComboBox<String> comboBox6;
-    
-    @FXML
-    private ComboBox<String> comboBox7;
+    private ComboBox<String> deviceComboBox;
     
     @FXML
     private TextArea resultTextArea;
     
-    // 存储表头信息
-    private List<String> headers;
-    
-    // 存储所有Excel数据
-    private List<List<String>> allExcelData;
+    // 存储所有温度数据
+    private List<TemperatureData> allTemperatureData;
     
     @FXML
     public void initialize() {
-        // 获取Excel数据模型的实例
-        ExcelDataModel dataModel = ExcelDataModel.getInstance();
+        // 获取温度数据模型的实例
+        TemperatureDataModel dataModel = TemperatureDataModel.getInstance();
         
-        // 获取表头和数据
-        headers = dataModel.getHeaders();
-        allExcelData = dataModel.getExcelData();
+        // 获取数据
+        allTemperatureData = dataModel.getTemperatureDataList();
         
-        // 初始化所有下拉框
-        if (headers != null && !headers.isEmpty()) {
-            comboBox1.setItems(FXCollections.observableArrayList(headers));
-            comboBox2.setItems(FXCollections.observableArrayList(headers));
-            comboBox3.setItems(FXCollections.observableArrayList(headers));
-            comboBox4.setItems(FXCollections.observableArrayList(headers));
-            comboBox5.setItems(FXCollections.observableArrayList(headers));
-            comboBox6.setItems(FXCollections.observableArrayList(headers));
-            comboBox7.setItems(FXCollections.observableArrayList(headers));
-            
-            // 默认选择第一个选项
-            comboBox1.setValue(headers.get(0));
-            comboBox2.setValue(headers.get(0));
-            comboBox3.setValue(headers.get(0));
-            comboBox4.setValue(headers.get(0));
-            comboBox5.setValue(headers.get(0));
-            comboBox6.setValue(headers.get(0));
-            comboBox7.setValue(headers.get(0));
-        } else {
-            resultTextArea.setText("没有可用的Excel数据");
-        }
+        // 初始化下拉框
+        lineComboBox.setItems(FXCollections.observableArrayList(dataModel.getAllLineNumbers()));
+        deviceComboBox.setItems(FXCollections.observableArrayList(dataModel.getAllDeviceNames()));
     }
     
     // 执行计算
     @FXML
     public void performCalculation() {
-        if (allExcelData == null || allExcelData.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "提示", "没有可用的Excel数据");
+        if (allTemperatureData == null || allTemperatureData.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "提示", "没有可用的温度数据");
             return;
         }
         
-        // 获取用户选择的列
-        String selectedCol1 = comboBox1.getValue();
-        String selectedCol2 = comboBox2.getValue();
-        String selectedCol3 = comboBox3.getValue();
-        String selectedCol4 = comboBox4.getValue();
-        String selectedCol5 = comboBox5.getValue();
-        String selectedCol6 = comboBox6.getValue();
-        String selectedCol7 = comboBox7.getValue();
+        // 获取用户选择的过滤条件
+        String selectedLine = lineComboBox.getValue();
+        String selectedDevice = deviceComboBox.getValue();
         
-        // 检查是否所有选项都已选择
-        if (selectedCol1 == null || selectedCol2 == null || selectedCol3 == null || 
-            selectedCol4 == null || selectedCol5 == null || selectedCol6 == null || selectedCol7 == null) {
-            showAlert(Alert.AlertType.WARNING, "提示", "请选择所有计算参数");
-            return;
+        // 过滤数据
+        List<TemperatureData> filteredData = allTemperatureData;
+        if (selectedLine != null && !selectedLine.isEmpty()) {
+            filteredData = filteredData.stream()
+                .filter(data -> data.getLineNumber() != null && data.getLineNumber().equals(selectedLine))
+                .toList();
         }
-        
-        // 获取列索引
-        int colIndex1 = getColumnIndex(selectedCol1);
-        int colIndex2 = getColumnIndex(selectedCol2);
-        int colIndex3 = getColumnIndex(selectedCol3);
-        int colIndex4 = getColumnIndex(selectedCol4);
-        int colIndex5 = getColumnIndex(selectedCol5);
-        int colIndex6 = getColumnIndex(selectedCol6);
-        int colIndex7 = getColumnIndex(selectedCol7);
-        
-        // 执行相加计算
-        double sum = 0;
-        int validCount = 0;
+        if (selectedDevice != null && !selectedDevice.isEmpty()) {
+            filteredData = filteredData.stream()
+                .filter(data -> data.getDeviceName() != null && data.getDeviceName().equals(selectedDevice))
+                .toList();
+        }
         
         StringBuilder resultBuilder = new StringBuilder();
-        resultBuilder.append("计算结果\n\n");
-        resultBuilder.append("选择的列: " + selectedCol1 + ", " + selectedCol2 + ", " + selectedCol3 + ", " + 
-                            selectedCol4 + ", " + selectedCol5 + ", " + selectedCol6 + ", " + selectedCol7 + "\n\n");
+        double totalCarTemp = 0;
+        int validCount = 0;
         
-        for (int i = 0; i < allExcelData.size(); i++) {
-            List<String> row = allExcelData.get(i);
-            double rowSum = 0;
-            boolean rowHasValue = false;
+        for (TemperatureData data : filteredData) {
+            double rowCarTemp = data.getCarTempLeft3() + data.getCarTempLeft4() + data.getCarTempLeft5() + 
+                               data.getCarTempLeft6() + data.getCarTempRight3() + data.getCarTempRight4() + 
+                               data.getCarTempRight5() + data.getCarTempRight6();
             
-            // 尝试从每行获取并累加数值
-            try {
-                if (colIndex1 < row.size() && !row.get(colIndex1).trim().isEmpty()) {
-                    rowSum += Double.parseDouble(row.get(colIndex1).trim());
-                    rowHasValue = true;
-                }
-                if (colIndex2 < row.size() && !row.get(colIndex2).trim().isEmpty()) {
-                    rowSum += Double.parseDouble(row.get(colIndex2).trim());
-                    rowHasValue = true;
-                }
-                if (colIndex3 < row.size() && !row.get(colIndex3).trim().isEmpty()) {
-                    rowSum += Double.parseDouble(row.get(colIndex3).trim());
-                    rowHasValue = true;
-                }
-                if (colIndex4 < row.size() && !row.get(colIndex4).trim().isEmpty()) {
-                    rowSum += Double.parseDouble(row.get(colIndex4).trim());
-                    rowHasValue = true;
-                }
-                if (colIndex5 < row.size() && !row.get(colIndex5).trim().isEmpty()) {
-                    rowSum += Double.parseDouble(row.get(colIndex5).trim());
-                    rowHasValue = true;
-                }
-                if (colIndex6 < row.size() && !row.get(colIndex6).trim().isEmpty()) {
-                    rowSum += Double.parseDouble(row.get(colIndex6).trim());
-                    rowHasValue = true;
-                }
-                if (colIndex7 < row.size() && !row.get(colIndex7).trim().isEmpty()) {
-                    rowSum += Double.parseDouble(row.get(colIndex7).trim());
-                    rowHasValue = true;
-                }
-                
-                if (rowHasValue) {
-                    sum += rowSum;
-                    validCount++;
-                    resultBuilder.append("行 " + (i + 1) + " 计算结果: " + rowSum + "\n");
-                }
-            } catch (NumberFormatException e) {
-                // 如果无法解析为数字，则跳过此行
-                resultBuilder.append("行 " + (i + 1) + ": 包含非数字值，无法计算\n");
-            }
+            totalCarTemp += rowCarTemp;
+            validCount++;
+            
+            String dateStr = data.getDate() != null ? data.getDate().toString() : "无日期";
+            resultBuilder.append("线别: " + data.getLineNumber() + ", 设备: " + data.getDeviceName() + ", 日期: " + dateStr + ", 车上温度总和: " + rowCarTemp + "\n");
         }
         
-        resultBuilder.append("\n总计算结果: " + sum);
-        resultBuilder.append("\n有效计算行数: " + validCount);
+        if (validCount > 0) {
+            double averageCarTemp = totalCarTemp / (validCount * 8); // 8个温度值
+            resultBuilder.append("\n总计算结果:");
+            resultBuilder.append("\n有效计算记录数: " + validCount);
+            resultBuilder.append("\n车上温度平均值: " + averageCarTemp);
+        } else {
+            resultBuilder.append("没有找到匹配的数据记录");
+        }
         
         // 显示计算结果
         resultTextArea.setText(resultBuilder.toString());
@@ -184,21 +105,13 @@ public class CalculationController {
             // 获取当前舞台并设置新场景
             Stage stage = (Stage) resultTextArea.getScene().getWindow();
             stage.setScene(new Scene(root, 800, 600));
-            stage.setTitle("Excel数据查询");
+            stage.setTitle("温度数据查询");
             stage.show();
             
         } catch (IOException e) {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "错误", "返回查询页面失败: " + e.getMessage());
         }
-    }
-    
-    // 获取列索引
-    private int getColumnIndex(String columnName) {
-        if (headers != null) {
-            return headers.indexOf(columnName);
-        }
-        return -1;
     }
     
     // 显示提示对话框

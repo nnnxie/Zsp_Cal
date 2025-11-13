@@ -1,13 +1,17 @@
 package com.zsp.calh.cal.model;
 
-import java.util.Date;
-import java.util.List;
+// 首先修改导入语句
+import lombok.Data;
+import java.time.MonthDay;
 
+
+
+@Data
 public class TemperatureData {
     private Long id;              // 唯一标识符
     private String lineNumber;    // 线别
     private String deviceName;    // 设备名称
-    private Date date;            // 日期
+    private MonthDay date;        // 日期（只包含月和日）
 
     // 车上测量温度
     private double carTempLeft3;    // 车上测量温度左3

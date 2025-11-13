@@ -1,6 +1,7 @@
 package com.zsp.calh.cal.controller;
 
-import com.zsp.calh.cal.model.ExcelDataModel;
+import com.zsp.calh.cal.model.TemperatureData;
+import com.zsp.calh.cal.model.TemperatureDataModel;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -11,110 +12,107 @@ import javafx.scene.control.*;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
 
 public class QueryController {
     @FXML
-    private ComboBox<String> columnComboBox;
+    private ComboBox<String> lineComboBox;
     
     @FXML
-    private TextField keywordTextField;
+    private ComboBox<String> deviceComboBox;
     
     @FXML
-    private TableView<Map<String, String>> dataTableView;
+    private TableView<TemperatureData> dataTableView;
     
-    // 存储表头信息
-    private List<String> headers;
+    @FXML
+    private TableColumn<TemperatureData, String> lineNumberColumn;
+    @FXML
+    private TableColumn<TemperatureData, String> deviceNameColumn;
+    @FXML
+    private TableColumn<TemperatureData, String> dateColumn;
+    @FXML
+    private TableColumn<TemperatureData, Double> carTempLeft3Column;
+    @FXML
+    private TableColumn<TemperatureData, Double> carTempLeft4Column;
+    @FXML
+    private TableColumn<TemperatureData, Double> carTempLeft5Column;
+    @FXML
+    private TableColumn<TemperatureData, Double> carTempLeft6Column;
+    @FXML
+    private TableColumn<TemperatureData, Double> carTempRight3Column;
+    @FXML
+    private TableColumn<TemperatureData, Double> carTempRight4Column;
+    @FXML
+    private TableColumn<TemperatureData, Double> carTempRight5Column;
+    @FXML
+    private TableColumn<TemperatureData, Double> carTempRight6Column;
     
-    // 存储所有Excel数据
-    private List<List<String>> allExcelData;
+    // 存储所有温度数据
+    private List<TemperatureData> allTemperatureData;
     
     @FXML
     public void initialize() {
-        // 获取Excel数据模型的实例
-        ExcelDataModel dataModel = ExcelDataModel.getInstance();
+        // 获取温度数据模型的实例
+        TemperatureDataModel dataModel = TemperatureDataModel.getInstance();
         
-        // 获取表头和数据
-        headers = dataModel.getHeaders();
-        allExcelData = dataModel.getExcelData();
+        // 获取数据
+        allTemperatureData = dataModel.getTemperatureDataList();
         
-        // 初始化列下拉框
-        if (headers != null && !headers.isEmpty()) {
-            columnComboBox.setItems(FXCollections.observableArrayList(headers));
-            if (!headers.isEmpty()) {
-                columnComboBox.setValue(headers.get(0));
-            }
-            
-            // 初始化表格列
-            initializeTableColumns();
-            
-            // 显示所有数据
-            showAllData();
-        } else {
-            System.err.println("没有可用的Excel数据");
-        }
+        // 初始化下拉框
+        lineComboBox.setItems(FXCollections.observableArrayList(dataModel.getAllLineNumbers()));
+        deviceComboBox.setItems(FXCollections.observableArrayList(dataModel.getAllDeviceNames()));
+        
+        // 初始化表格列
+        initializeTableColumns();
+        
+        // 显示所有数据
+        showAllData();
     }
     
     // 初始化表格列
     private void initializeTableColumns() {
-        dataTableView.getColumns().clear();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd");
         
-        for (int i = 0; i < headers.size(); i++) {
-            final int columnIndex = i;
-            TableColumn<Map<String, String>, String> column = new TableColumn<>(headers.get(i));
-            column.setCellValueFactory(cellData -> {
-                Map<String, String> rowMap = cellData.getValue();
-                String value = rowMap != null ? rowMap.getOrDefault("col" + columnIndex, "") : "";
-                return new javafx.beans.property.SimpleStringProperty(value);
-            });
-            dataTableView.getColumns().add(column);
-        }
+        lineNumberColumn.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getLineNumber()));
+        deviceNameColumn.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDeviceName()));
+        dateColumn.setCellValueFactory(cellData -> {
+            if (cellData.getValue().getDate() != null) {
+                return new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDate().format(formatter));
+            }
+            return new javafx.beans.property.SimpleStringProperty("");
+        });
+        
+        carTempLeft3Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempLeft3()).asObject());
+        carTempLeft4Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempLeft4()).asObject());
+        carTempLeft5Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempLeft5()).asObject());
+        carTempLeft6Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempLeft6()).asObject());
+        carTempRight3Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempRight3()).asObject());
+        carTempRight4Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempRight4()).asObject());
+        carTempRight5Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempRight5()).asObject());
+        carTempRight6Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempRight6()).asObject());
     }
     
     // 显示所有数据
     @FXML
     public void showAllData() {
-        populateTableView(allExcelData);
+        dataTableView.setItems(FXCollections.observableArrayList(allTemperatureData));
     }
     
     // 执行查询
     @FXML
     public void performQuery() {
-        String selectedColumn = columnComboBox.getValue();
-        String keyword = keywordTextField.getText();
-        
-        if (selectedColumn == null || keyword.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "提示", "请选择查询列并输入关键词");
-            return;
-        }
+        String selectedLine = lineComboBox.getValue();
+        String selectedDevice = deviceComboBox.getValue();
         
         // 使用数据模型进行查询
-        ExcelDataModel dataModel = ExcelDataModel.getInstance();
-        List<List<String>> filteredData = dataModel.filterData(selectedColumn, keyword);
+        TemperatureDataModel dataModel = TemperatureDataModel.getInstance();
+        List<TemperatureData> filteredData = dataModel.filterData(selectedLine, selectedDevice);
         
         // 显示查询结果
-        populateTableView(filteredData);
+        dataTableView.setItems(FXCollections.observableArrayList(filteredData));
         
         showAlert(Alert.AlertType.INFORMATION, "查询结果", "找到 " + filteredData.size() + " 条匹配记录");
-    }
-    
-    // 填充表格数据
-    private void populateTableView(List<List<String>> data) {
-        ObservableList<Map<String, String>> tableData = FXCollections.observableArrayList();
-        
-        for (List<String> row : data) {
-            Map<String, String> rowData = new HashMap<>();
-            for (int i = 0; i < row.size(); i++) {
-                if (i < headers.size()) {
-                    rowData.put("col" + i, row.get(i));
-                }
-            }
-            tableData.add(rowData);
-        }
-        
-        dataTableView.setItems(tableData);
     }
     
     // 返回主界面
@@ -128,7 +126,7 @@ public class QueryController {
             // 获取当前舞台并设置新场景
             Stage stage = (Stage) dataTableView.getScene().getWindow();
             stage.setScene(new Scene(root, 400, 300));
-            stage.setTitle("Excel文件读取工具");
+            stage.setTitle("温度数据处理工具");
             stage.show();
             
         } catch (IOException e) {
@@ -148,7 +146,7 @@ public class QueryController {
             // 获取当前舞台并设置新场景
             Stage stage = (Stage) dataTableView.getScene().getWindow();
             stage.setScene(new Scene(root, 800, 600));
-            stage.setTitle("Excel数据计算");
+            stage.setTitle("温度数据计算");
             stage.show();
             
         } catch (IOException e) {
