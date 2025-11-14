@@ -24,4 +24,5 @@
     
     <!-- 添加一个读取Excel文件的按钮 -->
     <Button text="读取Excel文件" onAction="#readExcelFile"/>
+    <Button text="计算页面" onAction="#goToCalculationView"/>
 </VBox>

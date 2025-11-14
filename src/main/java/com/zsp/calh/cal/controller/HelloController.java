@@ -78,7 +78,12 @@ public class HelloController {
             TemperatureDataModel dataModel = TemperatureDataModel.getInstance();
             dataModel.setTemperatureDataList(data);
             
-            welcomeText.setText("成功读取Excel文件，共 " + data.size() + " 条数据记录");
+            // 直接保存到SQLite数据库
+            String dbFilePath = "temperature_data.db";
+            String tableName = "temperature_data";
+            loadController.saveTemperatureDataToSQLite(data, dbFilePath, tableName);
+            
+            welcomeText.setText("成功读取Excel文件并保存到数据库，共 " + data.size() + " 条数据记录");
             
             try {
                 // 跳转到查询界面
@@ -97,6 +102,28 @@ public class HelloController {
             }
         } else {
             welcomeText.setText("读取Excel文件失败或文件为空");
+        }
+    }
+    
+    /**
+     * 跳转到计算页面的按钮事件处理方法
+     */
+    @FXML
+    protected void goToCalculationView() {
+        try {
+            // 加载计算页面FXML
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/com/zsp/calh/cal/calculation-view.fxml"));
+            Parent root = fxmlLoader.load();
+            
+            // 获取当前舞台并设置新场景
+            Stage stage = getStage();
+            stage.setScene(new Scene(root, 800, 600));
+            stage.setTitle("Excel数据计算");
+            stage.show();
+            
+        } catch (IOException e) {
+            e.printStackTrace();
+            welcomeText.setText("跳转到计算页面失败: " + e.getMessage());
         }
     }
     

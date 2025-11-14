@@ -154,4 +154,12 @@ public class DatabaseManager {
             }
         }
     }
+
+    /**
+     * 获取数据库连接对象
+     * @return Connection对象
+     */
+    public Connection getConnection() {
+        return connection;
+    }
 }
