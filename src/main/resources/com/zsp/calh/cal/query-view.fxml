@@ -49,7 +49,8 @@
         <VBox.margin>
             <Insets top="10" right="10" bottom="10" left="10"/>
         </VBox.margin>
-        <Button text="返回主界面" onAction="#returnToMainView"/>
+        <!-- 修改：将"返回主界面"按钮改为"导入Excel数据"按钮 -->
+        <Button text="导入Excel数据" onAction="#returnToMainView"/>
         <Button text="计算页面" onAction="#goToCalculationView"/>
     </HBox>
 </VBox>
