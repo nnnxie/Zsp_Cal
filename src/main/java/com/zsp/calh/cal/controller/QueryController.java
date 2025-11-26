@@ -2,275 +2,298 @@ package com.zsp.calh.cal.controller;
 
 import com.zsp.calh.cal.model.TemperatureData;
 import com.zsp.calh.cal.utils.DatabaseManager;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
+import java.io.File;
 import java.io.IOException;
-import java.sql.*;
+import java.lang.reflect.Method;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.MonthDay;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 public class QueryController {
-    @FXML
-    private ComboBox<String> lineComboBox;
-    
-    @FXML
-    private ComboBox<String> deviceComboBox;
-    
-    @FXML
-    private TableView<TemperatureData> dataTableView;
-    
-    @FXML
+    // 筛选控件
+    @FXML private ComboBox<String> dateComboBox;
+    @FXML private ComboBox<String> lineComboBox;
+    @FXML private ComboBox<String> deviceComboBox;
+    @FXML private ComboBox<String> probeComboBox;
+    @FXML private ComboBox<String> sideComboBox;
+
+    // 表格与状态
+    @FXML private TableView<TemperatureData> dataTableView;
+    @FXML private Label statusLabel;
+
+    // 基础固定列
     private TableColumn<TemperatureData, String> lineNumberColumn;
-    @FXML
     private TableColumn<TemperatureData, String> deviceNameColumn;
-    @FXML
     private TableColumn<TemperatureData, String> dateColumn;
-    @FXML
-    private TableColumn<TemperatureData, Double> carTempLeft3Column;
-    @FXML
-    private TableColumn<TemperatureData, Double> carTempLeft4Column;
-    @FXML
-    private TableColumn<TemperatureData, Double> carTempLeft5Column;
-    @FXML
-    private TableColumn<TemperatureData, Double> carTempLeft6Column;
-    @FXML
-    private TableColumn<TemperatureData, Double> carTempRight3Column;
-    @FXML
-    private TableColumn<TemperatureData, Double> carTempRight4Column;
-    @FXML
-    private TableColumn<TemperatureData, Double> carTempRight5Column;
-    @FXML
-    private TableColumn<TemperatureData, Double> carTempRight6Column;
-    
-    // 数据库管理器
-    // 移除这个成员变量
-    // private DatabaseManager dbManager;
-    
-    // 表名
+
     private static final String TABLE_NAME = "temperature_data";
-    
-    // 移除原来的dbManager成员变量声明，并修改初始化方法
-    
+
     @FXML
     public void initialize() {
-        // 使用全局数据库连接
-
-        // 初始化表格列
-        initializeTableColumns();
-
-        // 初始化下拉框选项 - 从数据库获取
+        setupBaseColumns();
         initializeComboBoxes();
 
-        // 程序启动时就加载并显示所有数据
-        showAllData();
+        // 默认选中项
+        probeComboBox.getSelectionModel().select("地面探头1");
+        sideComboBox.getSelectionModel().select("左");
 
+        statusLabel.setText("系统就绪，请选择筛选条件或导入数据");
     }
-    
-    // 修改所有使用dbManager的方法，使用getInstance()获取实例
-    // 例如：
-    private List<String> getDistinctValuesFromColumn(String columnName) throws SQLException {
-        List<String> values = new ArrayList<>();
-        String sql = "SELECT DISTINCT " + columnName + " FROM " + TABLE_NAME + " ORDER BY " + columnName;
-        
-        try (Statement stmt = DatabaseManager.getInstance().getConnection().createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            
-            while (rs.next()) {
-                String value = rs.getString(columnName);
-                if (value != null && !value.trim().isEmpty()) {
-                    values.add(value);
+
+    /**
+     * 导入 Excel 文件并保存到数据库
+     */
+    @FXML
+    public void importExcel() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("选择Excel文件");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Excel文件", "*.xlsx", "*.xls")
+        );
+
+        Stage stage = (Stage) dataTableView.getScene().getWindow();
+        File selectedFile = fileChooser.showOpenDialog(stage);
+
+        if (selectedFile != null) {
+            statusLabel.setText("正在处理文件: " + selectedFile.getName() + " ...");
+
+            try {
+                // 使用 LoadController 读取和保存
+                LoadController loadController = new LoadController();
+                List<TemperatureData> data = loadController.readExcelToTemperatureData(selectedFile.getAbsolutePath());
+
+                if (data != null && !data.isEmpty()) {
+                    loadController.saveTemperatureDataToSQLite(data, TABLE_NAME);
+
+                    // 刷新下拉框（可能有新日期/设备）
+                    initializeComboBoxes();
+
+                    statusLabel.setText("导入成功！共 " + data.size() + " 条数据。");
+                    showAlert(Alert.AlertType.INFORMATION, "导入成功", "已成功入库 " + data.size() + " 条数据。");
+
+                    // 自动刷新当前查询
+                    performQuery();
+                } else {
+                    statusLabel.setText("导入失败：文件为空或无有效数据");
+                    showAlert(Alert.AlertType.WARNING, "数据为空", "未从文件中读取到有效数据。");
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+                statusLabel.setText("导入出错: " + e.getMessage());
+                showAlert(Alert.AlertType.ERROR, "导入错误", e.getMessage());
             }
         }
-        
-        return values;
     }
-    
-    // 修改returnToMainView和goToCalculationView方法，移除disconnect调用
-    @FXML
-    public void returnToMainView() {
-        try {
-            // 不再关闭数据库连接
-            
-            // 加载主界面FXML
-            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/com/zsp/calh/cal/hello-view.fxml"));
-            Parent root = fxmlLoader.load();
-            
-            // 获取当前舞台并设置新场景
-            Stage stage = (Stage) dataTableView.getScene().getWindow();
-            stage.setScene(new Scene(root, 400, 300));
-            stage.setTitle("温度数据处理工具");
-            stage.show();
-            
-        } catch (IOException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "错误", "返回主界面失败: " + e.getMessage());
-        }
-    }
-    
-    // 从数据库初始化下拉框选项
-    private void initializeComboBoxes() {
-        try {
-            // 获取所有线别
-            List<String> lineNumbers = getDistinctValuesFromColumn("line_number");
-            lineComboBox.setItems(FXCollections.observableArrayList(lineNumbers));
-            
-            // 获取所有设备名称
-            List<String> deviceNames = getDistinctValuesFromColumn("device_name");
-            deviceComboBox.setItems(FXCollections.observableArrayList(deviceNames));
-            
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.err.println("初始化下拉框失败: " + e.getMessage());
-        }
-    }
-    
-    // 初始化表格列
-    private void initializeTableColumns() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd");
-        
-        lineNumberColumn.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getLineNumber()));
-        deviceNameColumn.setCellValueFactory(cellData -> new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDeviceName()));
-        dateColumn.setCellValueFactory(cellData -> {
-            if (cellData.getValue().getDate() != null) {
-                return new javafx.beans.property.SimpleStringProperty(cellData.getValue().getDate().format(formatter));
-            }
-            return new javafx.beans.property.SimpleStringProperty("");
-        });
-        
-        carTempLeft3Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempLeft3()).asObject());
-        carTempLeft4Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempLeft4()).asObject());
-        carTempLeft5Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempLeft5()).asObject());
-        carTempLeft6Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempLeft6()).asObject());
-        carTempRight3Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempRight3()).asObject());
-        carTempRight4Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempRight4()).asObject());
-        carTempRight5Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempRight5()).asObject());
-        carTempRight6Column.setCellValueFactory(cellData -> new javafx.beans.property.SimpleDoubleProperty(cellData.getValue().getCarTempRight6()).asObject());
-    }
-    
-    // 显示所有数据
-    @FXML
-    public void showAllData() {
-        try {
-            List<TemperatureData> dataList = executeTemperatureDataQuery();
-            dataTableView.setItems(FXCollections.observableArrayList(dataList));
-        } catch (SQLException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "查询错误", "无法查询数据: " + e.getMessage());
-        }
-    }
-    
-    // 执行查询
+
     @FXML
     public void performQuery() {
-        String selectedLine = lineComboBox.getValue();
-        String selectedDevice = deviceComboBox.getValue();
-        
+        String date = dateComboBox.getValue();
+        String line = lineComboBox.getValue();
+        String device = deviceComboBox.getValue();
+        String probeStr = probeComboBox.getValue();
+        String sideStr = sideComboBox.getValue();
+
+        if (probeStr == null || sideStr == null) {
+            showAlert(Alert.AlertType.WARNING, "提示", "请选择探头和方位，以便生成对应的列。");
+            return;
+        }
+
         try {
-            List<TemperatureData> filteredData = executeTemperatureDataQueryWithParameters(selectedLine, selectedDevice);
-            
-            // 显示查询结果
-            dataTableView.setItems(FXCollections.observableArrayList(filteredData));
-            
-            showAlert(Alert.AlertType.INFORMATION, "查询结果", "找到 " + filteredData.size() + " 条匹配记录");
-            
+            // 1. 获取数据
+            List<TemperatureData> data = executeQuery(date, line, device);
+
+            // 2. 动态生成列
+            updateTableViewColumns(probeStr, sideStr);
+
+            // 3. 填充表格
+            dataTableView.setItems(FXCollections.observableArrayList(data));
+            statusLabel.setText("查询完成，显示 " + data.size() + " 条记录");
+
         } catch (SQLException e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "查询错误", "执行查询失败: " + e.getMessage());
+            statusLabel.setText("数据库查询失败");
+            showAlert(Alert.AlertType.ERROR, "查询失败", e.getMessage());
         }
     }
-    
-    // 执行不带参数的查询
-    private List<TemperatureData> executeTemperatureDataQuery() throws SQLException {
-        String sql = "SELECT * FROM " + TABLE_NAME;
-        return executeQuery(sql, null, null);
+
+    @FXML
+    public void showAllData() {
+        dateComboBox.setValue(null);
+        lineComboBox.setValue(null);
+        deviceComboBox.setValue(null);
+        performQuery();
     }
-    
-    // 执行带参数的查询
-    private List<TemperatureData> executeTemperatureDataQueryWithParameters(String lineNumber, String deviceName) throws SQLException {
-        StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM " + TABLE_NAME + " WHERE 1=1");
+
+    @FXML
+    public void goToCalculationView() {
+        try {
+            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/com/zsp/calh/cal/calculation-view.fxml"));
+            Stage stage = (Stage) dataTableView.getScene().getWindow();
+            // 保持窗口大小一致
+            stage.setScene(new Scene(fxmlLoader.load(), 1100, 750));
+            stage.setTitle("数据计算中心");
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "跳转失败", e.getMessage());
+        }
+    }
+
+    // --- 内部逻辑方法 ---
+
+    private void initializeComboBoxes() {
+        try {
+            String oldDate = dateComboBox.getValue();
+            String oldLine = lineComboBox.getValue();
+            String oldDevice = deviceComboBox.getValue();
+
+            dateComboBox.setItems(FXCollections.observableArrayList(getDistinctValues("date")));
+            lineComboBox.setItems(FXCollections.observableArrayList(getDistinctValues("line_number")));
+            deviceComboBox.setItems(FXCollections.observableArrayList(getDistinctValues("device_name")));
+            probeComboBox.setItems(FXCollections.observableArrayList("地面探头1", "地面探头2", "地面探头3", "地面探头4"));
+            sideComboBox.setItems(FXCollections.observableArrayList("左", "右"));
+
+            // 恢复选中状态
+            if (oldDate != null && dateComboBox.getItems().contains(oldDate)) dateComboBox.setValue(oldDate);
+            if (oldLine != null && lineComboBox.getItems().contains(oldLine)) lineComboBox.setValue(oldLine);
+            if (oldDevice != null && deviceComboBox.getItems().contains(oldDevice)) deviceComboBox.setValue(oldDevice);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void setupBaseColumns() {
+        lineNumberColumn = new TableColumn<>("线别");
+        lineNumberColumn.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getLineNumber()));
+
+        deviceNameColumn = new TableColumn<>("设备名称");
+        deviceNameColumn.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getDeviceName()));
+
+        dateColumn = new TableColumn<>("日期");
+        dateColumn.setCellValueFactory(cell -> {
+            if (cell.getValue().getDate() != null) {
+                return new SimpleStringProperty(cell.getValue().getDate().format(DateTimeFormatter.ofPattern("MM-dd")));
+            }
+            return new SimpleStringProperty("");
+        });
+    }
+
+    /**
+     * 根据选择动态生成表格列
+     */
+    private void updateTableViewColumns(String probeStr, String sideStr) {
+        dataTableView.getColumns().clear();
+        dataTableView.getColumns().addAll(lineNumberColumn, deviceNameColumn, dateColumn);
+
+        // 解析: "地面探头1" -> 1
+        int probeIndex = Integer.parseInt(probeStr.replace("地面探头", ""));
+        boolean isLeft = "左".equals(sideStr);
+        String sideEn = isLeft ? "Left" : "Right";
+
+        // 动态添加4个车上温度列 (3-6)
+        for (int i = 3; i <= 6; i++) {
+            TableColumn<TemperatureData, Double> col = new TableColumn<>("车上" + sideStr + i);
+            String methodName = "getCarTemp" + sideEn + i; // e.g., getCarTempLeft3
+            col.setCellValueFactory(cell -> getReflectedProperty(cell.getValue(), methodName));
+            col.setPrefWidth(90);
+            dataTableView.getColumns().add(col);
+        }
+
+        // 动态添加4个地面温度列 (3-6)
+        for (int i = 3; i <= 6; i++) {
+            TableColumn<TemperatureData, Double> col = new TableColumn<>("地面" + probeIndex + sideStr + i);
+            String methodName = "getGroundTemp" + probeIndex + sideEn + i; // e.g., getGroundTemp1Left3
+            col.setCellValueFactory(cell -> getReflectedProperty(cell.getValue(), methodName));
+            col.setPrefWidth(110);
+            dataTableView.getColumns().add(col);
+        }
+    }
+
+    // 反射辅助方法
+    private SimpleObjectProperty<Double> getReflectedProperty(TemperatureData data, String methodName) {
+        try {
+            Method m = TemperatureData.class.getMethod(methodName);
+            return new SimpleObjectProperty<>((Double) m.invoke(data));
+        } catch (Exception e) {
+            return new SimpleObjectProperty<>(0.0);
+        }
+    }
+
+    private List<TemperatureData> executeQuery(String date, String line, String device) throws SQLException {
+        StringBuilder sql = new StringBuilder("SELECT * FROM " + TABLE_NAME + " WHERE 1=1");
         List<Object> params = new ArrayList<>();
-        
-        if (lineNumber != null && !lineNumber.isEmpty()) {
-            sqlBuilder.append(" AND line_number = ?");
-            params.add(lineNumber);
-        }
-        
-        if (deviceName != null && !deviceName.isEmpty()) {
-            sqlBuilder.append(" AND device_name = ?");
-            params.add(deviceName);
-        }
-        
-        return executeQuery(sqlBuilder.toString(), params, null);
-    }
-    
-    // 执行SQL查询并返回结果
-    // 修改executeQuery方法
-    private List<TemperatureData> executeQuery(String sql, List<Object> params, List<Integer> paramTypes) throws SQLException {
-        List<TemperatureData> dataList = new ArrayList<>();
-        
-        try (PreparedStatement pstmt = DatabaseManager.getInstance().getConnection().prepareStatement(sql)) {
-            // 设置参数
-            if (params != null) {
-                for (int i = 0; i < params.size(); i++) {
-                    if (paramTypes != null && i < paramTypes.size()) {
-                        pstmt.setObject(i + 1, params.get(i), paramTypes.get(i));
-                    } else {
-                        pstmt.setObject(i + 1, params.get(i));
-                    }
-                }
+
+        if (date != null && !date.isEmpty()) { sql.append(" AND date = ?"); params.add(date); }
+        if (line != null && !line.isEmpty()) { sql.append(" AND line_number = ?"); params.add(line); }
+        if (device != null && !device.isEmpty()) { sql.append(" AND device_name = ?"); params.add(device); }
+
+        List<TemperatureData> list = new ArrayList<>();
+        try (PreparedStatement pstmt = DatabaseManager.getInstance().getConnection().prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
             }
-            
-            // 执行查询
             try (ResultSet rs = pstmt.executeQuery()) {
-                // 映射结果集到TemperatureData对象
                 while (rs.next()) {
-                    TemperatureData data = mapResultSetToTemperatureData(rs);
-                    dataList.add(data);
+                    list.add(mapResultSetToTemperatureData(rs));
                 }
             }
         }
-        
-        return dataList;
+        return list;
     }
-    
-    // 将结果集映射到TemperatureData对象
+
+    private List<String> getDistinctValues(String col) throws SQLException {
+        List<String> list = new ArrayList<>();
+        String sql = "SELECT DISTINCT " + col + " FROM " + TABLE_NAME + " ORDER BY " + col;
+        try (Statement stmt = DatabaseManager.getInstance().getConnection().createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                String val = rs.getString(1);
+                if (val != null && !val.isEmpty()) list.add(val);
+            }
+        }
+        return list;
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String msg) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(msg);
+        alert.showAndWait();
+    }
+
+    // --- 完整的数据映射 (确保所有字段都被读取) ---
     private TemperatureData mapResultSetToTemperatureData(ResultSet rs) throws SQLException {
         TemperatureData data = new TemperatureData();
-        
+        data.setId(rs.getLong("id"));
         data.setLineNumber(rs.getString("line_number"));
         data.setDeviceName(rs.getString("device_name"));
-        
-        // 处理日期字段 - 修复日期解析失败问题
+
+        // 日期处理
         String dateStr = rs.getString("date");
         if (dateStr != null && !dateStr.isEmpty()) {
             try {
-                // 预处理异常格式，移除可能的前导--
-                String cleanDateStr = dateStr;
-                if (cleanDateStr.startsWith("--")) {
-                    cleanDateStr = cleanDateStr.substring(2);
-                }
-                
-                // 解析MonthDay字符串 (MM-dd格式)
-                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd");
-                data.setDate(MonthDay.parse(cleanDateStr, formatter));
-            } catch (Exception e) {
-                // 如果解析失败，设置为null
-                System.err.println("日期解析失败: " + dateStr);
-                data.setDate(null);
-            }
+                if (dateStr.startsWith("--")) dateStr = dateStr.substring(2);
+                data.setDate(MonthDay.parse(dateStr, DateTimeFormatter.ofPattern("MM-dd")));
+            } catch (Exception e) { /* ignore */ }
         }
-        
-        // 设置温度数据字段
+
+        // 车上温度 (Left3-6, Right3-6)
         data.setCarTempLeft3(rs.getDouble("car_temp_left3"));
         data.setCarTempLeft4(rs.getDouble("car_temp_left4"));
         data.setCarTempLeft5(rs.getDouble("car_temp_left5"));
@@ -279,40 +302,68 @@ public class QueryController {
         data.setCarTempRight4(rs.getDouble("car_temp_right4"));
         data.setCarTempRight5(rs.getDouble("car_temp_right5"));
         data.setCarTempRight6(rs.getDouble("car_temp_right6"));
-        
+
+        // 地面探头 1-4
+        for (int i = 1; i <= 4; i++) {
+            // Left/Right 3-6
+            setGroundTemp(data, rs, i, "left", 3);
+            setGroundTemp(data, rs, i, "left", 4);
+            setGroundTemp(data, rs, i, "left", 5);
+            setGroundTemp(data, rs, i, "left", 6);
+            setGroundTemp(data, rs, i, "right", 3);
+            setGroundTemp(data, rs, i, "right", 4);
+            setGroundTemp(data, rs, i, "right", 5);
+            setGroundTemp(data, rs, i, "right", 6);
+
+            // 线性与非线性 (Left/Right)
+            setLinearNonLinear(data, rs, i, "left");
+            setLinearNonLinear(data, rs, i, "right");
+        }
+
+        // 板温
+        data.setPlateTempInnerLeft(rs.getDouble("plate_temp_inner_left"));
+        data.setPlateTempInnerRight(rs.getDouble("plate_temp_inner_right"));
+        data.setPlateTempOuterLeft(rs.getDouble("plate_temp_outer_left"));
+        data.setPlateTempOuterRight(rs.getDouble("plate_temp_outer_right"));
+
         return data;
     }
 
-
-    
-    // 跳转到计算页面
-    @FXML
-    public void goToCalculationView() {
+    // 辅助映射方法：利用反射批量设置，避免写几百行代码
+    private void setGroundTemp(TemperatureData data, ResultSet rs, int probe, String side, int idx) {
         try {
-            // 移除数据库关闭操作
-            // if (dbManager != null) {
-            //     dbManager.disconnect();
-            // }
+            // DB column: ground_temp1_left3
+            String colName = "ground_temp" + probe + "_" + side + idx;
+            double val = rs.getDouble(colName);
 
-            FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/com/zsp/calh/cal/calculation-view.fxml"));
-            Parent root = fxmlLoader.load();
+            // Setter: setGroundTemp1Left3
+            String sideCamel = side.substring(0, 1).toUpperCase() + side.substring(1); // "Left"
+            String methodName = "setGroundTemp" + probe + sideCamel + idx;
 
-            Stage stage = (Stage) dataTableView.getScene().getWindow();
-            stage.setScene(new Scene(root, 800, 600));
-            stage.setTitle("温度数据计算");
-            stage.show();
-
-        } catch (IOException e) { // 移除了 SQLException
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "错误", "跳转到计算页面失败: " + e.getMessage());
+            Method m = TemperatureData.class.getMethod(methodName, double.class);
+            m.invoke(data, val);
+        } catch (Exception e) {
+            // 忽略字段不存在的错误，防止个别列名不匹配导致崩溃
         }
     }
-    
-    // 显示提示对话框
-    private void showAlert(Alert.AlertType alertType, String title, String message) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setContentText(message);
-        alert.showAndWait();
+
+    private void setLinearNonLinear(TemperatureData data, ResultSet rs, int probe, String side) {
+        try {
+            // Linear DB: linear_value_temp1left
+            String linCol = "linear_value_temp" + probe + side;
+            // Nonlinear DB: nonlinear_value_temp1left
+            String nonLinCol = "nonlinear_value_temp" + probe + side;
+
+            // Setters: setLinearValueTemp1left (注意 Model 定义中通常是小写 left)
+            // 根据你的 TemperatureData.java，如果定义是 setLinearValueTemp1left，则直接用
+            String methodSuffix = "Temp" + probe + side; // Temp1left
+
+            Method mLin = TemperatureData.class.getMethod("setLinearValueTemp" + methodSuffix, double.class);
+            mLin.invoke(data, rs.getDouble(linCol));
+
+            Method mNon = TemperatureData.class.getMethod("setNonlinearValueTemp" + methodSuffix, double.class);
+            mNon.invoke(data, rs.getDouble(nonLinCol));
+
+        } catch (Exception e) { }
     }
 }

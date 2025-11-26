@@ -3,33 +3,84 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
 
-<VBox alignment="TOP_LEFT" spacing="15.0" xmlns:fx="http://javafx.com/fxml"
-      fx:controller="com.zsp.calh.cal.controller.CalculationController">
-    <padding>
-        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0"/>
-    </padding>
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.zsp.calh.cal.controller.CalculationController"
+            style="-fx-background-color: #f4f6f9; -fx-font-family: 'Microsoft YaHei';">
 
-    <Label text="温度数据计算" />
-    
-    <!-- 计算条件区域 -->
-    <GridPane hgap="10" vgap="10">
-        <Label text="选择线别:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-        <ComboBox fx:id="lineComboBox" GridPane.rowIndex="0" GridPane.columnIndex="1" prefWidth="200"/>
-        
-        <Label text="选择设备:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-        <ComboBox fx:id="deviceComboBox" GridPane.rowIndex="1" GridPane.columnIndex="1" prefWidth="200"/>
-    </GridPane>
-    
-    <!-- 按钮区域 -->
-    <HBox alignment="CENTER" spacing="10">
-        <Button text="计算" onAction="#performCalculation" prefWidth="100"/>
-        <Button text="返回查询页" onAction="#returnToQueryView" prefWidth="120"/>
-    </HBox>
-    
-    <!-- 计算结果区域 -->
-    <VBox spacing="5">
-        <Label text="计算结果:"/>
-        <TextArea fx:id="resultTextArea" editable="false" prefHeight="200" wrapText="true"/>
-    </VBox>
-</VBox>
+    <top>
+        <VBox spacing="15">
+            <padding>
+                <Insets top="20" right="20" bottom="15" left="20"/>
+            </padding>
+
+            <HBox alignment="CENTER_LEFT" spacing="20">
+                <Label text="数据计算与分析" textFill="#2c3e50">
+                    <font>
+                        <Font name="System Bold" size="24.0"/>
+                    </font>
+                </Label>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Button text="📂 导入Excel数据" onAction="#importExcel"
+                        style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-background-radius: 5; -fx-padding: 8 15;"/>
+
+                <Button text="⬅ 返回查询页" onAction="#returnToQueryView"
+                        style="-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-background-radius: 5; -fx-padding: 8 15;"/>
+            </HBox>
+
+            <HBox spacing="15" alignment="CENTER_LEFT" style="-fx-background-color: white; -fx-background-radius: 8; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 5, 0, 0, 2);">
+                <padding>
+                    <Insets top="15" right="15" bottom="15" left="15"/>
+                </padding>
+
+                <VBox spacing="5">
+                    <Label text="日期" textFill="#7f8c8d"/>
+                    <ComboBox fx:id="dateComboBox" prefWidth="130" style="-fx-background-color: #ecf0f1;"/>
+                </VBox>
+                <VBox spacing="5">
+                    <Label text="线别" textFill="#7f8c8d"/>
+                    <ComboBox fx:id="lineComboBox" prefWidth="100" style="-fx-background-color: #ecf0f1;"/>
+                </VBox>
+                <VBox spacing="5">
+                    <Label text="设备" textFill="#7f8c8d"/>
+                    <ComboBox fx:id="deviceComboBox" prefWidth="130" style="-fx-background-color: #ecf0f1;"/>
+                </VBox>
+
+                <Separator orientation="VERTICAL"/>
+
+                <VBox spacing="5">
+                    <Label text="探头(A/C/D来源)" textFill="#7f8c8d"/>
+                    <ComboBox fx:id="probeComboBox" prefWidth="120" style="-fx-background-color: #ecf0f1;"/>
+                </VBox>
+                <VBox spacing="5">
+                    <Label text="方位" textFill="#7f8c8d"/>
+                    <ComboBox fx:id="sideComboBox" prefWidth="80" style="-fx-background-color: #ecf0f1;"/>
+                </VBox>
+
+                <Region HBox.hgrow="ALWAYS"/>
+
+                <Button text="⚡ 开始计算" onAction="#performCalculation"
+                        style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5; -fx-padding: 8 20;"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <center>
+        <VBox>
+            <padding>
+                <Insets right="20" bottom="20" left="20"/>
+            </padding>
+            <Label text="计算报告:" textFill="#34495e" style="-fx-font-size: 14; -fx-font-weight: bold;">
+                <VBox.margin>
+                    <Insets bottom="5"/>
+                </VBox.margin>
+            </Label>
+            <TextArea fx:id="resultTextArea" editable="false" wrapText="true" VBox.vgrow="ALWAYS"
+                      style="-fx-font-family: 'Consolas', 'Monospaced'; -fx-font-size: 13; -fx-control-inner-background: #ffffff; -fx-background-radius: 5; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 5, 0, 0, 0);"/>
+        </VBox>
+    </center>
+
+</BorderPane>
