@@ -78,13 +78,19 @@ public class QueryController {
                 List<TemperatureData> data = loadController.readExcelToTemperatureData(selectedFile.getAbsolutePath());
 
                 if (data != null && !data.isEmpty()) {
-                    loadController.saveTemperatureDataToSQLite(data, TABLE_NAME);
+                    // 【修改】获取实际插入的条数（int）
+                    int insertedCount = loadController.saveTemperatureDataToSQLite(data, TABLE_NAME);
+                    int ignoredCount = data.size() - insertedCount;
 
                     // 刷新下拉框（可能有新日期/设备）
                     initializeComboBoxes();
 
-                    statusLabel.setText("导入成功！共 " + data.size() + " 条数据。");
-                    showAlert(Alert.AlertType.INFORMATION, "导入成功", "已成功入库 " + data.size() + " 条数据。");
+                    // 【修改】构建详细的提示信息
+                    String msg = String.format("读取总数：%d 条\n成功入库：%d 条\n忽略重复：%d 条",
+                            data.size(), insertedCount, ignoredCount);
+
+                    statusLabel.setText("导入完成：" + msg.replace("\n", ", "));
+                    showAlert(Alert.AlertType.INFORMATION, "导入结果", msg);
 
                     // 自动刷新当前查询
                     performQuery();

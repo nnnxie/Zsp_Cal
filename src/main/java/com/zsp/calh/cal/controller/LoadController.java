@@ -17,74 +17,6 @@ import java.util.Iterator;
 import java.util.List;
 
 public class LoadController {
-    
-    /**
-     * 从Excel文件中按行读取数据
-     * @param filePath Excel文件路径
-     * @return 包含所有行数据的列表，每行数据是一个字符串列表
-     */
-    public List<List<String>> readExcelFile(String filePath) {
-        List<List<String>> data = new ArrayList<>();
-        
-        try (FileInputStream file = new FileInputStream(new File(filePath));
-             Workbook workbook = new XSSFWorkbook(file)) {
-            
-            // 获取第一个工作表
-            Sheet sheet = workbook.getSheetAt(0);
-            
-            // 迭代行
-            Iterator<Row> rowIterator = sheet.iterator();
-            
-            while (rowIterator.hasNext()) {
-                Row row = rowIterator.next();
-                List<String> rowData = new ArrayList<>();
-                
-                // 迭代单元格
-                Iterator<Cell> cellIterator = row.cellIterator();
-                
-                while (cellIterator.hasNext()) {
-                    Cell cell = cellIterator.next();
-                    
-                    // 根据单元格类型获取值
-                    switch (cell.getCellType()) {
-                        case STRING:
-                            rowData.add(cell.getStringCellValue());
-                            break;
-                        case NUMERIC:
-                            if (DateUtil.isCellDateFormatted(cell)) {
-                                rowData.add(cell.getDateCellValue().toString());
-                            } else {
-                                // 处理数字，避免科学计数法
-                                double value = cell.getNumericCellValue();
-                                if (value == Math.floor(value)) {
-                                    // 如果是整数，转换为长整型再转字符串
-                                    rowData.add(String.valueOf((long) value));
-                                } else {
-                                    rowData.add(String.valueOf(value));
-                                }
-                            }
-                            break;
-                        case BOOLEAN:
-                            rowData.add(String.valueOf(cell.getBooleanCellValue()));
-                            break;
-                        case BLANK:
-                            rowData.add("");
-                            break;
-                        default:
-                            rowData.add(cell.toString());
-                    }
-                }
-                
-                data.add(rowData);
-            }
-            
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.err.println("读取Excel文件出错: " + e.getMessage());
-        }
-        
-        return data;
-    }
 
     /**
      * 从Excel文件读取数据并转换为TemperatureData对象列表
@@ -101,7 +33,7 @@ public class LoadController {
             Sheet sheet = workbook.getSheetAt(0);
             
             // 从第3行开始读取数据（索引为2，因为从0开始计数）
-            for (int i = 2; i <= sheet.getLastRowNum(); i++) {
+            for (int i = 3; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
                 
@@ -224,38 +156,40 @@ public class LoadController {
      * @param temperatureDataList TemperatureData对象列表
      * @param tableName 表名
      */
-    public void saveTemperatureDataToSQLite(List<TemperatureData> temperatureDataList, String tableName) {
+    /**
+     * 将TemperatureData对象列表保存到SQLite数据库。
+     * 返回实际成功插入的数据条数（已自动忽略重复）。
+     */
+    public int saveTemperatureDataToSQLite(List<TemperatureData> temperatureDataList, String tableName) {
         if (temperatureDataList == null || temperatureDataList.isEmpty()) {
             System.out.println("没有温度数据可保存到数据库");
-            return;
+            return 0;
         }
 
-        // 注意：不再需要 dbFilePath 参数，因为 DatabaseManager 已经是初始化好的单例
         DatabaseManager dbManager = DatabaseManager.getInstance();
 
         try {
-            // 1. 创建表（如果不存在）
+            // 1. 创建表（如果不存在），现在包含了唯一性约束
             createTableIfNotExists(dbManager, tableName);
 
-            // 2. 批量插入数据
-            batchInsertData(dbManager, tableName, temperatureDataList);
+            // 2. 批量插入数据，并返回成功插入的行数
+            return batchInsertData(dbManager, tableName, temperatureDataList);
 
         } catch (SQLException e) {
             e.printStackTrace();
             System.err.println("保存温度数据到SQLite数据库出错: " + e.getMessage());
+            return 0;
         }
     }
 
     /**
      * 创建存储温度数据的表（如果它还不存在）。
+     * 已添加联合唯一约束：(line_number, device_name, date)
      */
     private void createTableIfNotExists(DatabaseManager dbManager, String tableName) throws SQLException {
-        // SQL语句与原来相同，但封装在一个独立的方法中更清晰
         String createTableSQL = "CREATE TABLE IF NOT EXISTS " + tableName + " ("
                 + "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + "line_number TEXT, device_name TEXT, date TEXT, "
-                // ... 所有60个温度和值的列，这里为了简洁省略 ...
-                // 建议将这个巨大的字符串定义为一个常量
                 + "car_temp_left3 REAL, car_temp_left4 REAL, car_temp_left5 REAL, car_temp_left6 REAL, "
                 + "car_temp_right3 REAL, car_temp_right4 REAL, car_temp_right5 REAL, car_temp_right6 REAL, "
                 + "ground_temp1_left3 REAL, ground_temp1_left4 REAL, ground_temp1_left5 REAL, ground_temp1_left6 REAL, "
@@ -270,7 +204,8 @@ public class LoadController {
                 + "linear_value_temp3left REAL, linear_value_temp3right REAL, linear_value_temp4left REAL, linear_value_temp4right REAL, "
                 + "nonlinear_value_temp1left REAL, nonlinear_value_temp1right REAL, nonlinear_value_temp2left REAL, nonlinear_value_temp2right REAL, "
                 + "nonlinear_value_temp3left REAL, nonlinear_value_temp3right REAL, nonlinear_value_temp4left REAL, nonlinear_value_temp4right REAL, "
-                + "plate_temp_inner_left REAL, plate_temp_inner_right REAL, plate_temp_outer_left REAL, plate_temp_outer_right REAL"
+                + "plate_temp_inner_left REAL, plate_temp_inner_right REAL, plate_temp_outer_left REAL, plate_temp_outer_right REAL, "
+                + "UNIQUE(line_number, date, device_name)" // 【关键修改】添加联合唯一约束，防止重复
                 + ")";
 
         try (Statement stmt = dbManager.getConnection().createStatement()) {
@@ -281,10 +216,11 @@ public class LoadController {
 
     /**
      * 使用事务和批处理高效地插入数据。
+     * 使用 INSERT OR IGNORE 自动忽略重复数据。
      */
-    private void batchInsertData(DatabaseManager dbManager, String tableName, List<TemperatureData> dataList) throws SQLException {
-        // 构建插入SQL语句 (保持你原有的长SQL字符串不变)
-        String insertSQL = "INSERT INTO " + tableName + " (line_number, device_name, date, car_temp_left3, car_temp_left4, car_temp_left5, car_temp_left6, "
+    private int batchInsertData(DatabaseManager dbManager, String tableName, List<TemperatureData> dataList) throws SQLException {
+        // 【关键修改】使用 INSERT OR IGNORE INTO
+        String insertSQL = "INSERT OR IGNORE INTO " + tableName + " (line_number, device_name, date, car_temp_left3, car_temp_left4, car_temp_left5, car_temp_left6, "
                 + "car_temp_right3, car_temp_right4, car_temp_right5, car_temp_right6, "
                 + "ground_temp1_left3, ground_temp1_left4, ground_temp1_left5, ground_temp1_left6, "
                 + "ground_temp1_right3, ground_temp1_right4, ground_temp1_right5, ground_temp1_right6, "
@@ -302,10 +238,11 @@ public class LoadController {
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         Connection conn = dbManager.getConnection();
-        boolean originalAutoCommit = conn.getAutoCommit(); // 保存原始提交状态
+        boolean originalAutoCommit = conn.getAutoCommit();
+        int successCount = 0;
 
         try {
-            // 核心修复：在做任何操作前先开启事务
+            // 【关键修改】在操作前先开启事务，修复 auto-commit 错误
             conn.setAutoCommit(false);
 
             try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
@@ -313,13 +250,15 @@ public class LoadController {
                     int paramIndex = 1;
                     pstmt.setString(paramIndex++, data.getLineNumber());
                     pstmt.setString(paramIndex++, data.getDeviceName());
-                    // 日期转字符串处理
+
+                    // 日期格式化为字符串，确保唯一性判断基于“日”
                     String dateStr = "";
                     if (data.getDate() != null) {
                         dateStr = data.getDate().format(java.time.format.DateTimeFormatter.ofPattern("MM-dd"));
                     }
                     pstmt.setString(paramIndex++, dateStr);
 
+                    // --- 设置所有其他 double 参数 (60个) ---
                     // 车上
                     pstmt.setDouble(paramIndex++, data.getCarTempLeft3()); pstmt.setDouble(paramIndex++, data.getCarTempLeft4());
                     pstmt.setDouble(paramIndex++, data.getCarTempLeft5()); pstmt.setDouble(paramIndex++, data.getCarTempLeft6());
@@ -371,23 +310,30 @@ public class LoadController {
 
                 int[] result = pstmt.executeBatch();
                 conn.commit(); // 提交事务
-                System.out.println("成功保存 " + result.length + " 条温度数据到表 " + tableName);
+
+                // 【关键修改】统计成功插入的行数（忽略的行返回0，成功的行返回1）
+                for (int i : result) {
+                    if (i > 0) successCount++;
+                }
+
+                System.out.println("Excel处理完毕：读取 " + dataList.size() + " 条，实际入库 " + successCount + " 条，忽略重复 " + (dataList.size() - successCount) + " 条。");
 
             } catch (SQLException e) {
-                // 现在回滚是安全的，因为我们已经设置了 autoCommit = false
                 conn.rollback();
-                throw e; // 这里会抛出真正的错误（比如列数不匹配）
+                throw e;
             }
         } catch (SQLException e) {
             e.printStackTrace();
             throw e;
         } finally {
             try {
-                conn.setAutoCommit(originalAutoCommit); // 恢复现场
+                conn.setAutoCommit(originalAutoCommit);
             } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
+
+        return successCount;
     }
     /**
      * 获取单元格的值并转换为字符串
