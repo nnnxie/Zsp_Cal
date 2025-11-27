@@ -157,10 +157,12 @@ public class QueryController {
 
     private void initializeComboBoxes() {
         try {
-            String oldDate = dateComboBox.getValue();
-            String oldLine = lineComboBox.getValue();
-            String oldDevice = deviceComboBox.getValue();
+            // 尝试获取旧值，如果还没初始化则为null
+            String oldDate = (dateComboBox.getValue() != null) ? dateComboBox.getValue() : null;
+            String oldLine = (lineComboBox.getValue() != null) ? lineComboBox.getValue() : null;
+            String oldDevice = (deviceComboBox.getValue() != null) ? deviceComboBox.getValue() : null;
 
+            // 填充下拉框
             dateComboBox.setItems(FXCollections.observableArrayList(getDistinctValues("date")));
             lineComboBox.setItems(FXCollections.observableArrayList(getDistinctValues("line_number")));
             deviceComboBox.setItems(FXCollections.observableArrayList(getDistinctValues("device_name")));
@@ -173,7 +175,15 @@ public class QueryController {
             if (oldDevice != null && deviceComboBox.getItems().contains(oldDevice)) deviceComboBox.setValue(oldDevice);
 
         } catch (SQLException e) {
-            e.printStackTrace();
+            // 核心修复：检查是否是"表不存在"的错误
+            if (e.getMessage() != null && e.getMessage().contains("no such table")) {
+                System.out.println("第一次运行：数据表尚未创建，跳过下拉框初始化。");
+                // 可以在这里设置一些默认提示，或者什么都不做
+                statusLabel.setText("欢迎！请先点击“导入Excel数据”以创建数据库。");
+            } else {
+                // 其他数据库错误则打印堆栈
+                e.printStackTrace();
+            }
         }
     }
 

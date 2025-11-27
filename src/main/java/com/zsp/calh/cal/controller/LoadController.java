@@ -283,35 +283,110 @@ public class LoadController {
      * 使用事务和批处理高效地插入数据。
      */
     private void batchInsertData(DatabaseManager dbManager, String tableName, List<TemperatureData> dataList) throws SQLException {
-        // 构建一次插入SQL语句
-        String insertSQL = "INSERT INTO " + tableName + " (line_number, device_name, date, car_temp_left3, "
-                // ... 省略所有60个列名 ...
-                + "plate_temp_outer_right) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        // 构建插入SQL语句 (保持你原有的长SQL字符串不变)
+        String insertSQL = "INSERT INTO " + tableName + " (line_number, device_name, date, car_temp_left3, car_temp_left4, car_temp_left5, car_temp_left6, "
+                + "car_temp_right3, car_temp_right4, car_temp_right5, car_temp_right6, "
+                + "ground_temp1_left3, ground_temp1_left4, ground_temp1_left5, ground_temp1_left6, "
+                + "ground_temp1_right3, ground_temp1_right4, ground_temp1_right5, ground_temp1_right6, "
+                + "ground_temp2_left3, ground_temp2_left4, ground_temp2_left5, ground_temp2_left6, "
+                + "ground_temp2_right3, ground_temp2_right4, ground_temp2_right5, ground_temp2_right6, "
+                + "ground_temp3_left3, ground_temp3_left4, ground_temp3_left5, ground_temp3_left6, "
+                + "ground_temp3_right3, ground_temp3_right4, ground_temp3_right5, ground_temp3_right6, "
+                + "ground_temp4_left3, ground_temp4_left4, ground_temp4_left5, ground_temp4_left6, "
+                + "ground_temp4_right3, ground_temp4_right4, ground_temp4_right5, ground_temp4_right6, "
+                + "linear_value_temp1left, linear_value_temp1right, linear_value_temp2left, linear_value_temp2right, "
+                + "linear_value_temp3left, linear_value_temp3right, linear_value_temp4left, linear_value_temp4right, "
+                + "nonlinear_value_temp1left, nonlinear_value_temp1right, nonlinear_value_temp2left, nonlinear_value_temp2right, "
+                + "nonlinear_value_temp3left, nonlinear_value_temp3right, nonlinear_value_temp4left, nonlinear_value_temp4right, "
+                + "plate_temp_inner_left, plate_temp_inner_right, plate_temp_outer_left, plate_temp_outer_right) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         Connection conn = dbManager.getConnection();
-        try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
-            conn.setAutoCommit(false); // 开启事务
+        boolean originalAutoCommit = conn.getAutoCommit(); // 保存原始提交状态
 
-            for (TemperatureData data : dataList) {
-                // ... 原来的 pstmt.set... 调用保持不变 ...
-                // 这里为了简洁省略了所有63个 set 调用
-                int paramIndex = 1;
-                pstmt.setString(paramIndex++, data.getLineNumber());
-                // ...
-                pstmt.setDouble(paramIndex++, data.getPlateTempOuterRight());
+        try {
+            // 核心修复：在做任何操作前先开启事务
+            conn.setAutoCommit(false);
 
-                pstmt.addBatch();
+            try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+                for (TemperatureData data : dataList) {
+                    int paramIndex = 1;
+                    pstmt.setString(paramIndex++, data.getLineNumber());
+                    pstmt.setString(paramIndex++, data.getDeviceName());
+                    // 日期转字符串处理
+                    String dateStr = "";
+                    if (data.getDate() != null) {
+                        dateStr = data.getDate().format(java.time.format.DateTimeFormatter.ofPattern("MM-dd"));
+                    }
+                    pstmt.setString(paramIndex++, dateStr);
+
+                    // 车上
+                    pstmt.setDouble(paramIndex++, data.getCarTempLeft3()); pstmt.setDouble(paramIndex++, data.getCarTempLeft4());
+                    pstmt.setDouble(paramIndex++, data.getCarTempLeft5()); pstmt.setDouble(paramIndex++, data.getCarTempLeft6());
+                    pstmt.setDouble(paramIndex++, data.getCarTempRight3()); pstmt.setDouble(paramIndex++, data.getCarTempRight4());
+                    pstmt.setDouble(paramIndex++, data.getCarTempRight5()); pstmt.setDouble(paramIndex++, data.getCarTempRight6());
+
+                    // 地面1
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp1Left3()); pstmt.setDouble(paramIndex++, data.getGroundTemp1Left4());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp1Left5()); pstmt.setDouble(paramIndex++, data.getGroundTemp1Left6());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp1Right3()); pstmt.setDouble(paramIndex++, data.getGroundTemp1Right4());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp1Right5()); pstmt.setDouble(paramIndex++, data.getGroundTemp1Right6());
+
+                    // 地面2
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp2Left3()); pstmt.setDouble(paramIndex++, data.getGroundTemp2Left4());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp2Left5()); pstmt.setDouble(paramIndex++, data.getGroundTemp2Left6());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp2Right3()); pstmt.setDouble(paramIndex++, data.getGroundTemp2Right4());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp2Right5()); pstmt.setDouble(paramIndex++, data.getGroundTemp2Right6());
+
+                    // 地面3
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp3Left3()); pstmt.setDouble(paramIndex++, data.getGroundTemp3Left4());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp3Left5()); pstmt.setDouble(paramIndex++, data.getGroundTemp3Left6());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp3Right3()); pstmt.setDouble(paramIndex++, data.getGroundTemp3Right4());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp3Right5()); pstmt.setDouble(paramIndex++, data.getGroundTemp3Right6());
+
+                    // 地面4
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp4Left3()); pstmt.setDouble(paramIndex++, data.getGroundTemp4Left4());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp4Left5()); pstmt.setDouble(paramIndex++, data.getGroundTemp4Left6());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp4Right3()); pstmt.setDouble(paramIndex++, data.getGroundTemp4Right4());
+                    pstmt.setDouble(paramIndex++, data.getGroundTemp4Right5()); pstmt.setDouble(paramIndex++, data.getGroundTemp4Right6());
+
+                    // 线性
+                    pstmt.setDouble(paramIndex++, data.getLinearValueTemp1left()); pstmt.setDouble(paramIndex++, data.getLinearValueTemp1right());
+                    pstmt.setDouble(paramIndex++, data.getLinearValueTemp2left()); pstmt.setDouble(paramIndex++, data.getLinearValueTemp2right());
+                    pstmt.setDouble(paramIndex++, data.getLinearValueTemp3left()); pstmt.setDouble(paramIndex++, data.getLinearValueTemp3right());
+                    pstmt.setDouble(paramIndex++, data.getLinearValueTemp4left()); pstmt.setDouble(paramIndex++, data.getLinearValueTemp4right());
+
+                    // 非线性
+                    pstmt.setDouble(paramIndex++, data.getNonlinearValueTemp1left()); pstmt.setDouble(paramIndex++, data.getNonlinearValueTemp1right());
+                    pstmt.setDouble(paramIndex++, data.getNonlinearValueTemp2left()); pstmt.setDouble(paramIndex++, data.getNonlinearValueTemp2right());
+                    pstmt.setDouble(paramIndex++, data.getNonlinearValueTemp3left()); pstmt.setDouble(paramIndex++, data.getNonlinearValueTemp3right());
+                    pstmt.setDouble(paramIndex++, data.getNonlinearValueTemp4left()); pstmt.setDouble(paramIndex++, data.getNonlinearValueTemp4right());
+
+                    // 板温
+                    pstmt.setDouble(paramIndex++, data.getPlateTempInnerLeft()); pstmt.setDouble(paramIndex++, data.getPlateTempInnerRight());
+                    pstmt.setDouble(paramIndex++, data.getPlateTempOuterLeft()); pstmt.setDouble(paramIndex++, data.getPlateTempOuterRight());
+
+                    pstmt.addBatch();
+                }
+
+                int[] result = pstmt.executeBatch();
+                conn.commit(); // 提交事务
+                System.out.println("成功保存 " + result.length + " 条温度数据到表 " + tableName);
+
+            } catch (SQLException e) {
+                // 现在回滚是安全的，因为我们已经设置了 autoCommit = false
+                conn.rollback();
+                throw e; // 这里会抛出真正的错误（比如列数不匹配）
             }
-
-            int[] result = pstmt.executeBatch();
-            conn.commit(); // 提交事务
-            System.out.println("成功保存 " + result.length + " 条温度数据到表 " + tableName);
-
         } catch (SQLException e) {
-            conn.rollback(); // 发生错误，回滚事务
-            throw e; // 重新抛出异常
+            e.printStackTrace();
+            throw e;
         } finally {
-            conn.setAutoCommit(true); // 恢复自动提交
+            try {
+                conn.setAutoCommit(originalAutoCommit); // 恢复现场
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
     }
     /**
