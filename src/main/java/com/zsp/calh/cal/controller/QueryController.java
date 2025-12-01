@@ -42,11 +42,16 @@ public class QueryController {
     private TableColumn<TemperatureData, String> dateColumn;
 
     private static final String TABLE_NAME = "temperature_data";
+    private boolean isUpdating = false;
 
     @FXML
     public void initialize() {
         setupBaseColumns();
-        initializeComboBoxes();
+
+        // 初始化下拉框监听器
+        setupComboBoxListeners();
+        // 首次加载所有选项
+        refreshComboBoxOptions(null);
 
         // 默认选中项
         probeComboBox.getSelectionModel().select("地面探头1");
@@ -83,7 +88,7 @@ public class QueryController {
                     int ignoredCount = data.size() - insertedCount;
 
                     // 刷新下拉框（可能有新日期/设备）
-                    initializeComboBoxes();
+                    refreshComboBoxOptions(null);
 
                     // 【修改】构建详细的提示信息
                     String msg = String.format("读取总数：%d 条\n成功入库：%d 条\n忽略重复：%d 条",
@@ -104,6 +109,123 @@ public class QueryController {
                 showAlert(Alert.AlertType.ERROR, "导入错误", e.getMessage());
             }
         }
+    }
+
+    /**
+     * 设置下拉框的监听器，实现联动逻辑
+     */
+    private void setupComboBoxListeners() {
+        dateComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (!isUpdating) refreshComboBoxOptions("date");
+        });
+        lineComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (!isUpdating) refreshComboBoxOptions("line");
+        });
+        deviceComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (!isUpdating) refreshComboBoxOptions("device");
+        });
+    }
+
+    /**
+     * 根据当前选中的条件，刷新所有下拉框的可选项
+     * @param trigger 触发刷新的源头 ("date", "line", "device" 或 null)
+     */
+    private void refreshComboBoxOptions(String trigger) {
+        isUpdating = true; // 锁定，防止触发监听器造成死循环
+        try {
+            // 获取当前选中的值
+            String curDate = dateComboBox.getValue();
+            String curLine = lineComboBox.getValue();
+            String curDevice = deviceComboBox.getValue();
+
+            // 1. 刷新日期 (如果是日期触发的，则不用刷新自己，保持展示所有相关日期以便切换)
+            if (!"date".equals(trigger)) {
+                // 获取在当前线别和设备下的有效日期
+                List<String> dates = getLinkedDistinctValues("date", null, curLine, curDevice);
+                updateComboItems(dateComboBox, dates, curDate);
+            }
+
+            // 2. 刷新线别
+            if (!"line".equals(trigger)) {
+                // 获取在当前日期和设备下的有效线别
+                List<String> lines = getLinkedDistinctValues("line_number", curDate, null, curDevice);
+                updateComboItems(lineComboBox, lines, curLine);
+            }
+
+            // 3. 刷新设备
+            if (!"device".equals(trigger)) {
+                // 获取在当前日期和线别下的有效设备
+                List<String> devices = getLinkedDistinctValues("device_name", curDate, curLine, null);
+                updateComboItems(deviceComboBox, devices, curDevice);
+            }
+
+            // 探头和方位不需要联动查询数据库，保持静态即可
+            if (probeComboBox.getItems().isEmpty()) {
+                probeComboBox.setItems(FXCollections.observableArrayList("地面探头1", "地面探头2", "地面探头3", "地面探头4"));
+            }
+            if (sideComboBox.getItems().isEmpty()) {
+                sideComboBox.setItems(FXCollections.observableArrayList("左", "右"));
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            isUpdating = false; // 解锁
+        }
+    }
+
+    /**
+     * 辅助方法：更新下拉框选项，始终在头部添加空选项
+     */
+    private void updateComboItems(ComboBox<String> combo, List<String> items, String currentVal) {
+        // 1. 创建一个新的列表
+        List<String> displayItems = new ArrayList<>();
+
+        // 2. 强制添加一个空选项（代表“全部”或“不限”）
+        displayItems.add("");
+
+        // 3. 添加从数据库查询到的有效选项
+        if (items != null) {
+            displayItems.addAll(items);
+        }
+
+        // 4. 设置下拉框数据源
+        combo.setItems(FXCollections.observableArrayList(displayItems));
+
+        // 5. 恢复选中状态
+        if (currentVal != null && items != null && items.contains(currentVal)) {
+            combo.setValue(currentVal); // 如果原选中值在新列表中依然有效，则保持选中
+        } else {
+            combo.setValue(""); // 否则重置为“空选项”
+        }
+    }
+    /**
+     * 核心查询方法：根据其他条件筛选目标列的唯一值
+     */
+    private List<String> getLinkedDistinctValues(String targetCol, String date, String line, String device) throws SQLException {
+        List<String> list = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("SELECT DISTINCT " + targetCol + " FROM " + TABLE_NAME + " WHERE 1=1");
+        List<Object> params = new ArrayList<>();
+
+        // 动态拼接条件：只有当条件不为空时才作为筛选限制
+        if (date != null && !date.isEmpty()) { sql.append(" AND date = ?"); params.add(date); }
+        if (line != null && !line.isEmpty()) { sql.append(" AND line_number = ?"); params.add(line); }
+        if (device != null && !device.isEmpty()) { sql.append(" AND device_name = ?"); params.add(device); }
+
+        sql.append(" ORDER BY " + targetCol);
+
+        try (PreparedStatement pstmt = DatabaseManager.getInstance().getConnection().prepareStatement(sql.toString())) {
+            for (int i = 0; i < params.size(); i++) {
+                pstmt.setObject(i + 1, params.get(i));
+            }
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    String val = rs.getString(1);
+                    if (val != null && !val.isEmpty()) list.add(val);
+                }
+            }
+        }
+        return list;
     }
 
     @FXML
@@ -160,38 +282,6 @@ public class QueryController {
     }
 
     // --- 内部逻辑方法 ---
-
-    private void initializeComboBoxes() {
-        try {
-            // 尝试获取旧值，如果还没初始化则为null
-            String oldDate = (dateComboBox.getValue() != null) ? dateComboBox.getValue() : null;
-            String oldLine = (lineComboBox.getValue() != null) ? lineComboBox.getValue() : null;
-            String oldDevice = (deviceComboBox.getValue() != null) ? deviceComboBox.getValue() : null;
-
-            // 填充下拉框
-            dateComboBox.setItems(FXCollections.observableArrayList(getDistinctValues("date")));
-            lineComboBox.setItems(FXCollections.observableArrayList(getDistinctValues("line_number")));
-            deviceComboBox.setItems(FXCollections.observableArrayList(getDistinctValues("device_name")));
-            probeComboBox.setItems(FXCollections.observableArrayList("地面探头1", "地面探头2", "地面探头3", "地面探头4"));
-            sideComboBox.setItems(FXCollections.observableArrayList("左", "右"));
-
-            // 恢复选中状态
-            if (oldDate != null && dateComboBox.getItems().contains(oldDate)) dateComboBox.setValue(oldDate);
-            if (oldLine != null && lineComboBox.getItems().contains(oldLine)) lineComboBox.setValue(oldLine);
-            if (oldDevice != null && deviceComboBox.getItems().contains(oldDevice)) deviceComboBox.setValue(oldDevice);
-
-        } catch (SQLException e) {
-            // 核心修复：检查是否是"表不存在"的错误
-            if (e.getMessage() != null && e.getMessage().contains("no such table")) {
-                System.out.println("第一次运行：数据表尚未创建，跳过下拉框初始化。");
-                // 可以在这里设置一些默认提示，或者什么都不做
-                statusLabel.setText("欢迎！请先点击“导入Excel数据”以创建数据库。");
-            } else {
-                // 其他数据库错误则打印堆栈
-                e.printStackTrace();
-            }
-        }
-    }
 
     private void setupBaseColumns() {
         lineNumberColumn = new TableColumn<>("线别");
@@ -272,18 +362,6 @@ public class QueryController {
         return list;
     }
 
-    private List<String> getDistinctValues(String col) throws SQLException {
-        List<String> list = new ArrayList<>();
-        String sql = "SELECT DISTINCT " + col + " FROM " + TABLE_NAME + " ORDER BY " + col;
-        try (Statement stmt = DatabaseManager.getInstance().getConnection().createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
-                String val = rs.getString(1);
-                if (val != null && !val.isEmpty()) list.add(val);
-            }
-        }
-        return list;
-    }
 
     private void showAlert(Alert.AlertType type, String title, String msg) {
         Alert alert = new Alert(type);
